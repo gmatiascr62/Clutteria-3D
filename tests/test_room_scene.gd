@@ -176,3 +176,61 @@ func test_save_and_resume_scene_state() -> void:
 	check(absf(s2.time_left - s.time_left) < 0.5, "mismo tiempo")
 	scene2.queue_free()
 	await _frames(1)
+
+
+func test_pause_hides_room_and_freezes_timer() -> void:
+	var scene := await _open_scene("studio", 30, 0.0, 5)
+	var s: RoomSession = scene.session
+	await runner.create_timer(0.3).timeout
+	scene._pause()
+	var t := s.time_left
+	check(not scene.view.visible, "la habitación queda oculta en pausa")
+	check(runner.paused, "el árbol queda en pausa")
+	await runner.create_timer(0.5, true).timeout
+	eq(s.time_left, t, "el cronómetro no avanza en pausa")
+	scene._resume()
+	check(scene.view.visible, "vuelve a mostrarse")
+	await runner.create_timer(0.3).timeout
+	check(s.time_left < t, "el cronómetro sigue al reanudar")
+	scene.queue_free()
+	await _frames(1)
+
+
+func test_tray_full_then_defeat_costs_one_life_once() -> void:
+	var game = runner.root.get_node("Game")
+	game.reset_progress()
+	game.profile.tools = {"papelera": 0, "iman": 0, "mezclador": 0, "reloj": 0}
+	var scene := await _open_scene("living", 90, 0.3, 3)
+	game.run.mode = "story"
+	game.run.room_key = "depto_sol/2"
+	var s: RoomSession = scene.session
+	s.mode = "story"
+	for c in s.level.containers.size():
+		s.open_container(c)
+	var lives_before: int = game.lives()
+	var guard := 0
+	while s.blocked == "" and guard < 300:
+		guard += 1
+		var counts := s.tray.variants_count()
+		var pick := -1
+		for p in s.level.pieces:
+			if p.kind == "trash" and s.present[p.id] and s.is_accessible(p.id) and counts.get(p.variant, 0) < 2:
+				pick = p.id
+				break
+		if pick < 0:
+			break
+		scene._on_piece_tapped(pick)
+	eq(s.blocked, "lost", "sin herramientas, bandeja llena => derrota")
+	eq(game.lives(), lives_before - 1, "se descuenta una vida")
+	scene._show_defeat()
+	eq(game.lives(), lives_before - 1, "mostrar de nuevo la derrota no descuenta otra vida")
+	game.profile.coins = 500
+	scene._continue_paid()
+	eq(s.blocked, "", "continuar con monedas destraba")
+	eq(s.tray.slots.size(), Balance.TRAY_SIZE - Balance.CONTINUE_RETURN_ITEMS, "devuelve 3 objetos a la habitación")
+	eq(game.lives(), lives_before - 1, "continuar no descuenta vidas")
+	for c in scene.ui_layer.get_children():
+		if c is Control and c.process_mode == Node.PROCESS_MODE_ALWAYS:
+			c.queue_free()
+	scene.queue_free()
+	await _frames(1)

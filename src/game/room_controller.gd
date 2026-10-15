@@ -620,6 +620,9 @@ func _show_options() -> void:
 
 
 func _resume() -> void:
+	if is_instance_valid(_dialog):
+		_dialog.queue_free()
+	_dialog = null
 	_paused = false
 	get_tree().paused = false
 	view.visible = true

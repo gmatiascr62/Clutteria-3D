@@ -55,7 +55,7 @@ func new_profile() -> Dictionary:
 		"properties": {},
 		"neighborhoods": ["centro"],
 		"keys": {},
-		"settings": {"sensitivity": 1.0, "volume": 0.8, "mute": false},
+		"settings": {"sensitivity": 1.0, "volume": 0.8, "mute": false, "show_fps": false},
 		"tutorial": {},
 		"daily_claimed": -1,
 		"contracts_done": {},
@@ -407,6 +407,12 @@ func finish_trash(session: RoomSession) -> Dictionary:
 		var prev := int(profile.stars.get(key, 0))
 		if stars > prev:
 			profile.stars[key] = stars
+		if stars == 3 and prev < 3:
+			# Premio del desafío: una herramienta la primera vez que se logran 3 estrellas.
+			var tools := Balance.TOOL_PRICES.keys()
+			var tool: String = tools[abs(hash(key)) % tools.size()]
+			profile.tools[tool] = int(profile.tools.get(tool, 0)) + 1
+			extra.append("¡3 estrellas! Premio: %s" % Balance.TOOL_NAMES[tool])
 		profile.completed[key] = true
 		if def.get("secret", false) and not is_restored(key):
 			# Las habitaciones secretas no requieren restauración.

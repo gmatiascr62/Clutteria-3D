@@ -32,4 +32,9 @@ static func make() -> Control:
 	mute.button_pressed = bool(Game.setting("mute"))
 	mute.toggled.connect(func(on): Game.set_setting("mute", on))
 	vb.add_child(mute)
+	var fps := CheckButton.new()
+	fps.text = "Mostrar FPS y memoria"
+	fps.button_pressed = bool(Game.setting("show_fps"))
+	fps.toggled.connect(func(on): Game.set_setting("show_fps", on))
+	vb.add_child(fps)
 	return vb

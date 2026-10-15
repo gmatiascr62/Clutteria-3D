@@ -6,6 +6,7 @@ var _lives_label: Label
 var _coins_label: Label
 var _stars_label: Label
 var _continue: Button
+var _ad_button: Button
 var _dialog: Control
 
 
@@ -63,6 +64,12 @@ func _ready() -> void:
 	right.add_child(UiKit.button("Mapa de barrios", func(): get_tree().change_scene_to_file("res://scenes/map.tscn"), Color(0.25, 0.45, 0.6), Vector2(0, 70)))
 	right.add_child(UiKit.button("Herramientas", func(): ShopDialog.open(self, _refresh), Color(0.3, 0.35, 0.5), Vector2(0, 70)))
 	right.add_child(UiKit.button("Opciones", _on_options, Color(0.3, 0.32, 0.38), Vector2(0, 70)))
+	_ad_button = UiKit.button("Ver anuncio: +1 vida", func():
+		RewardedAds.show(func():
+			Economy.add_life(Game.profile, Game.now())
+			Game.mark_dirty(true)
+			_refresh()), Color(0.45, 0.3, 0.5), Vector2(0, 60))
+	right.add_child(_ad_button)
 	Game.profile_changed.connect(_refresh)
 	_refresh()
 
@@ -86,6 +93,8 @@ func _refresh() -> void:
 		s += ("\n" if s != "" else "") + "Partida en curso: " + name
 	_status.text = s
 	_continue.visible = Game.has_run()
+	# Sólo se muestra si hay un proveedor de anuncios integrado y listo.
+	_ad_button.visible = lives < Balance.MAX_LIVES and RewardedAds.is_available()
 
 
 func _on_continue() -> void:

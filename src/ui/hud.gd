@@ -26,6 +26,7 @@ var _left: Control
 var _right: Control
 var _bottom: Control
 var interactive: Array[Control] = []
+var _fps: Label
 
 
 func build(viewpoints: int) -> void:
@@ -201,6 +202,11 @@ func build(viewpoints: int) -> void:
 	add_child(_tutorial_panel)
 	interactive.append(_tutorial_panel)
 
+	_fps = UiKit.label("", 16, Color(0.6, 1.0, 0.6))
+	_fps.position = Vector2(14, 80)
+	_fps.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_fps)
+
 
 func _chip() -> PanelContainer:
 	var p := PanelContainer.new()
@@ -210,6 +216,9 @@ func _chip() -> PanelContainer:
 
 
 func update_state(session: RoomSession) -> void:
+	_fps.visible = bool(Game.setting("show_fps"))
+	if _fps.visible:
+		_fps.text = "%d FPS · %.0f MB · %d objetos" % [Engine.get_frames_per_second(), OS.get_static_memory_usage() / 1048576.0, Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)]
 	_time_label.text = Game.format_time(session.time_left)
 	var low := session.time_left < 20.0 and session.phase == "trash"
 	_time_label.add_theme_color_override("font_color", UiKit.BAD if low else UiKit.TEXT)
