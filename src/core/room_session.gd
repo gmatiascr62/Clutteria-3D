@@ -323,6 +323,20 @@ func solver_state() -> Dictionary:
 
 
 func _finish_trash() -> void:
+	# Cajas o llaves que quedaron (p. ej. al fondo de la última pila) se
+	# entregan al terminar; no cuentan para el desafío de "abrir una caja".
+	for p in level.pieces:
+		if p.kind != "trash" and present[p.id]:
+			present[p.id] = false
+			if p.kind == "mystery":
+				stats.prizes.append(p.prize)
+				stats["auto_found"] = int(stats.get("auto_found", 0)) + 1
+				if p.prize.type == "treasure":
+					stats.treasure_value += int(p.prize.get("value", 0))
+			elif p.kind == "key":
+				stats.key_found = true
+			piece_removed.emit(p.id)
+			special_collected.emit(p.id, p)
 	phase = "restore"
 	blocked = ""
 	state_changed.emit()

@@ -27,11 +27,11 @@ func _ready() -> void:
 	top.add_theme_constant_override("separation", 14)
 	root.add_child(top)
 	top.add_child(UiKit.button("< Menú", func(): get_tree().change_scene_to_file("res://scenes/main_menu.tscn"), Color(0.3, 0.32, 0.38), Vector2(140, 60)))
-	top.add_child(UiKit.label("Mapa de barrios", 34, UiKit.ACCENT))
+	top.add_child(UiKit.label("Mapa de barrios", 30, UiKit.ACCENT))
 	var sp := Control.new()
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(sp)
-	top.add_child(UiKit.button("Herramientas", func(): ShopDialog.open(self, _rebuild), Color(0.3, 0.35, 0.5), Vector2(190, 60)))
+	top.add_child(UiKit.button("Herramientas", func(): ShopDialog.open(self, _rebuild), Color(0.3, 0.35, 0.5), Vector2(0, 60)))
 	top.add_child(VectorIcon.make("star", UiKit.ACCENT, 30))
 	_stars = UiKit.label("", 26)
 	top.add_child(_stars)

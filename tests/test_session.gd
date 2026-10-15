@@ -190,6 +190,26 @@ func test_serialize_resume_exact() -> void:
 	eq(s2.stats.tools_used, s.stats.tools_used, "mismas estadísticas")
 
 
+func test_leftover_specials_delivered_on_finish() -> void:
+	var lvl := LevelGenerator.generate("kitchen", 45, 0.2, 77, {"key": true})
+	var s := RoomSession.new()
+	s.setup(lvl, "story", "find_mystery", inv)
+	var got := []
+	s.special_collected.connect(func(pid, _p): got.append(pid))
+	for c in lvl.containers.size():
+		s.open_container(c)
+	for pid in Solver.solve(lvl).steps:
+		s.take(pid)
+	var specials := 0
+	for p in lvl.pieces:
+		if p.kind != "trash":
+			specials += 1
+			check(not s.present[p.id], "especial %d entregada" % p.id)
+	eq(got.size(), specials, "se notifican todas las especiales")
+	check(s.stats.key_found, "la llave no se pierde")
+	check(not s.challenge_met(), "entregadas automáticamente no cumplen el desafío")
+
+
 func test_mystery_and_challenges() -> void:
 	var s := RoomSession.new()
 	var lvl := LevelGenerator.generate("studio", 30, 0.0, 4)
