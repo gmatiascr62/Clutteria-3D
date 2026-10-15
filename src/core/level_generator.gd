@@ -159,7 +159,7 @@ static func generate(layout_id: String, item_count: int, difficulty: float, seed
 			n_floor += 1
 	var floor_needed := int(ceil(float(need - n_surf * 2) / maxf(1.0, n_floor))) + 1
 	floor_max = clampi(maxi(floor_max, floor_needed), 1, 8)
-	var target_depth := lerpf(1.7, 3.4, difficulty)
+	var target_depth := lerpf(2.3, 3.8, difficulty)
 	var pile_n := clampi(int(ceil(need / target_depth)), 1, cells.size())
 	# Distribuir: preferir celdas no contiguas para que las pilas no se tapen.
 	var chosen := _choose_spread(cells, pile_n)
@@ -344,10 +344,9 @@ static func _choose_spread(cells: Array, n: int) -> Array:
 			break
 		var g: Vector2i = c.grid
 		var near := false
-		for dx in [-1, 0, 1]:
-			for dz in [-1, 0, 1]:
-				if used.has(g + Vector2i(dx, dz)):
-					near = true
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			if used.has(g + d):
+				near = true
 		if not near:
 			chosen.append(c)
 			used[g] = true

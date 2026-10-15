@@ -28,7 +28,7 @@ const SHAPES := {
 	"teddy": Vector3(0.12, 0.17, 0.10),
 	"magazine": Vector3(0.21, 0.015, 0.15),
 	"remote": Vector3(0.17, 0.025, 0.05),
-	"pizza": Vector3(0.24, 0.04, 0.24),
+	"pizza": Vector3(0.22, 0.04, 0.22),
 	"cup": Vector3(0.08, 0.11, 0.08),
 	"bag": Vector3(0.16, 0.12, 0.14),
 	"box": Vector3(0.18, 0.12, 0.14),
@@ -191,6 +191,10 @@ const FAMILIES := [
 	]},
 ]
 
+## Escala global de la basura: algo más grande que lo real para que se lea
+## bien en pantallas de teléfono.
+const WORLD_SCALE := 1.2
+
 static var _variants: Dictionary = {}
 
 
@@ -227,7 +231,7 @@ static func families_for_theme(theme: String) -> Array:
 ## Tamaño en reposo (con escala) de una variante.
 static func size_of(id: String) -> Vector3:
 	var v := variant(id)
-	return SHAPES[v.shape] * v.scale
+	return SHAPES[v.shape] * v.scale * WORLD_SCALE
 
 
 ## Mitad de la diagonal horizontal: radio que ocupa en el piso con cualquier giro.

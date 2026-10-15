@@ -27,18 +27,18 @@ const LAYOUTS := {
 		],
 	},
 	"bathroom": {
-		"max_items": 90, "name": "Baño", "theme": "bathroom", "size": Vector3(3.6, 2.6, 3.2),
+		"max_items": 75, "name": "Baño", "theme": "bathroom", "size": Vector3(3.9, 2.6, 3.4),
 		"floor": "tile", "floor_color": "#cfd8dc", "wall_color": "#cfe3e6",
 		"window": {"wall": "north", "pos": Vector2(0.9, 1.8), "size": Vector2(0.7, 0.5)},
 		"door": {"wall": "south", "pos": 1.1},
-		"viewpoints": [Vector2(0.6, -0.1), Vector2(-0.5, 0.5), Vector2(0.6, 1.1)],
+		"viewpoints": [Vector2(0.6, -0.1), Vector2(-0.5, 0.5), Vector2(0.7, 1.15)],
 		"furniture": [
-			{"type": "bathtub", "name": "Bañera", "pos": Vector2(-0.95, -1.15), "size": Vector3(1.6, 0.55, 0.75), "color": "#f0f0f0", "accent": "#b0bec5", "value": 200},
-			{"type": "counter", "name": "Vanitory", "pos": Vector2(1.1, -1.35), "size": Vector3(1.0, 0.85, 0.45), "color": "#e6e0d4", "accent": "#fafafa", "surface": true, "value": 140, "drawers": 2, "face": "+z"},
-			{"type": "toilet", "name": "Inodoro", "pos": Vector2(1.5, 0.45), "size": Vector3(0.45, 0.75, 0.65), "color": "#f5f5f5", "value": 90},
-			{"type": "dresser", "name": "Mueble alto", "pos": Vector2(-1.55, 0.85), "size": Vector3(0.45, 1.15, 0.8), "color": "#bfa98a", "surface": true, "value": 100, "drawers": 2, "face": "+x"},
+			{"type": "bathtub", "name": "Bañera", "pos": Vector2(-1.1, -1.3), "size": Vector3(1.6, 0.55, 0.75), "color": "#f0f0f0", "accent": "#b0bec5", "value": 200},
+			{"type": "counter", "name": "Vanitory", "pos": Vector2(1.25, -1.45), "size": Vector3(1.0, 0.85, 0.45), "color": "#e6e0d4", "accent": "#fafafa", "surface": true, "value": 140, "drawers": 2, "face": "+z"},
+			{"type": "toilet", "name": "Inodoro", "pos": Vector2(1.65, 0.45), "size": Vector3(0.45, 0.75, 0.65), "color": "#f5f5f5", "value": 90},
+			{"type": "dresser", "name": "Mueble alto", "pos": Vector2(-1.7, 0.85), "size": Vector3(0.45, 1.15, 0.8), "color": "#bfa98a", "surface": true, "value": 100, "drawers": 2, "face": "+x"},
 		],
-		"covers": [{"type": "basket", "pos": Vector2(-0.6, 1.25), "size": Vector3(0.5, 0.5, 0.5)}],
+		"covers": [{"type": "basket", "pos": Vector2(-0.7, 1.4), "size": Vector3(0.5, 0.5, 0.5)}],
 		"stains": [
 			{"surface": "floor", "pos": Vector2(0.2, 0.2), "size": Vector2(0.9, 0.7)},
 			{"surface": "floor", "pos": Vector2(-0.4, -0.3), "size": Vector2(0.6, 0.5)},
@@ -158,7 +158,7 @@ const PROPERTIES := {
 	"casa_dos_pisos": {"name": "Casa de dos pisos", "kind": "Casa de dos pisos", "price": 1500, "base_value": 2600, "rooms": [
 		{"name": "Cocina (PB)", "layout": "kitchen", "items": 120, "difficulty": 0.5, "challenge": "find_mystery"},
 		{"name": "Living (PB)", "layout": "living", "items": 150, "difficulty": 0.55, "challenge": "all_containers"},
-		{"name": "Baño (PB)", "layout": "bathroom", "items": 90, "difficulty": 0.5, "challenge": "tray_max5"},
+		{"name": "Baño (PB)", "layout": "bathroom", "items": 75, "difficulty": 0.5, "challenge": "tray_max5"},
 		{"name": "Dormitorio principal (PA)", "layout": "bedroom", "items": 150, "difficulty": 0.55, "challenge": "no_tools"},
 		{"name": "Dormitorio niños (PA)", "layout": "bedroom", "items": 150, "difficulty": 0.6, "challenge": "find_mystery"},
 		{"name": "Altillo (PA)", "layout": "attic", "items": 120, "difficulty": 0.55, "challenge": "tray_max5"},
@@ -166,7 +166,7 @@ const PROPERTIES := {
 	"mansion": {"name": "Mansión de las Lomas", "kind": "Mansión", "price": 4000, "base_value": 7200, "rooms": [
 		{"name": "Cocina", "layout": "kitchen", "items": 180, "difficulty": 0.7, "challenge": "find_mystery"},
 		{"name": "Gran living", "layout": "living", "items": 240, "difficulty": 0.8, "challenge": "tray_max5"},
-		{"name": "Baño principal", "layout": "bathroom", "items": 90, "difficulty": 0.7, "challenge": "no_tools"},
+		{"name": "Baño principal", "layout": "bathroom", "items": 75, "difficulty": 0.7, "challenge": "no_tools"},
 		{"name": "Suite", "layout": "bedroom", "items": 180, "difficulty": 0.75, "challenge": "all_containers"},
 		{"name": "Dormitorio de huéspedes", "layout": "bedroom", "items": 150, "difficulty": 0.75, "challenge": "find_mystery", "key_for": 7},
 		{"name": "Biblioteca", "layout": "living", "items": 210, "difficulty": 0.8, "challenge": "tray_max5"},

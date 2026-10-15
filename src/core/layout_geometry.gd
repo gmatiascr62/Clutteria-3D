@@ -5,7 +5,7 @@ extends RefCounted
 ## de observación (segmento ojo→celda sin atravesar muebles).
 
 const EYE_HEIGHT := 1.55
-const CELL := 0.40
+const CELL := 0.42
 const VIEWPOINT_CLEAR := 0.5
 const DRAWER_ZONE := 0.45
 const MAX_VIEW_DIST := 4.8

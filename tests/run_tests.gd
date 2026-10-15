@@ -26,6 +26,10 @@ func _run() -> void:
 	if args.size() > 0:
 		filter = args[0]
 	var t0 := Time.get_ticks_msec()
+	var game = root.get_node_or_null("Game")
+	if game:
+		game.save_path = "user://test_profile.json"
+		game.reset_progress()
 	for path in SUITES:
 		if filter != "" and not path.contains(filter):
 			continue
