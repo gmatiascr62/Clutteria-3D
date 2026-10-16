@@ -91,6 +91,7 @@ func _ready() -> void:
 		if session.opened[ci]:
 			view.open_container(ci, false)
 	view.place_all(session)
+	_update_debris()
 
 	camera = Camera3D.new()
 	camera.near = 0.05
@@ -334,6 +335,8 @@ func _has_pieces_in(ci: int) -> bool:
 
 
 func _tap(pos: Vector2) -> void:
+	if _mode == "restore" and _tap_restore(pos):
+		return
 	var body := pick_at(pos)
 	if body == null:
 		return
@@ -371,7 +374,16 @@ func _on_piece_tapped(pid: int) -> void:
 	elif r.reason == "covered":
 		view.shake(pid)
 		Sfx.play("deny")
-		UiKit.toast(ui_layer, "Está tapado: sacá primero lo de arriba", UiKit.MUTED, 1.0)
+		# Resaltar lo que hay que sacar primero (lo de arriba que ya se puede tomar).
+		var s: int = level.slots[session.piece_slot[pid]].above
+		var shown := false
+		while s >= 0:
+			var other: int = session.slot_piece[s]
+			if other >= 0 and session.present[other] and session.is_accessible(other):
+				view.flash_piece(other)
+				shown = true
+			s = level.slots[s].above
+		UiKit.toast(ui_layer, "Está tapado: primero sacá lo resaltado" if shown else "Está tapado: sacá primero lo de arriba", UiKit.MUTED, 1.2)
 
 
 # --- Reacciones a la sesión -----------------------------------------------------
@@ -381,7 +393,13 @@ func _on_piece_removed(pid: int) -> void:
 	if pn.node.visible:
 		view.poof(pn.node.global_position + Vector3(0, pn.size.y * 0.5, 0))
 	view.place_all(session)
+	_update_debris()
 	_refresh_hud()
+
+
+func _update_debris() -> void:
+	var total := maxi(1, session.total_trash())
+	view.set_debris_fraction(float(session.remaining_trash()) / total)
 
 
 func _on_trio(_variant: String) -> void:
@@ -705,6 +723,7 @@ func _enter_after_trash() -> void:
 		return
 	_mode = "results"
 	_select_trash = false
+	view.set_debris_fraction(0.0)
 	_end_tutorial()
 	hud.set_trash_mode(false)
 	if Game.run.get("restore_only", false):
@@ -761,6 +780,7 @@ func _start_restoration() -> void:
 	restore_panel.build(level.layout)
 	restore_panel.paint_chosen.connect(_on_paint)
 	restore_panel.furniture_action.connect(_on_furniture)
+	restore_panel.fixture_pressed.connect(_on_fixture)
 	restore_panel.finish_pressed.connect(_finish_restoration)
 	restore_panel.refresh(_restore, _restore.clean, int(Game.profile.coins))
 	hud.interactive.append(restore_panel)
@@ -805,6 +825,44 @@ func _on_paint(id: String) -> void:
 	view.animate_paint(Color.html(p.color))
 	Sfx.play("paint")
 	_tut_event("paint")
+	_after_restore_change()
+
+
+## En la restauración: tocar un arreglo (vidrio, lámpara) o un mueble.
+func _tap_restore(pos: Vector2) -> bool:
+	var from := camera.project_ray_origin(pos)
+	var hit := _ray(from, from + camera.project_ray_normal(pos) * 15.0, RoomView.LAYER_WORLD | RoomView.LAYER_INTERACT)
+	if hit.is_empty():
+		return false
+	var col: Object = hit.collider
+	if col.has_meta("fixture"):
+		_on_fixture(String(col.get_meta("fixture")))
+		return true
+	if col.has_meta("furniture"):
+		var fi := int(col.get_meta("furniture"))
+		view.highlight_furniture(fi)
+		restore_panel.select_furniture(fi)
+		Sfx.play("click")
+		_tut_event("furniture")
+		return true
+	return false
+
+
+func _on_fixture(name: String) -> void:
+	if view.is_fixed(name):
+		UiKit.toast(ui_layer, "Ya está arreglado", UiKit.MUTED, 1.0)
+		return
+	var fx: Dictionary = Balance.FIXTURES[name]
+	if not Game.spend(int(fx.cost)):
+		UiKit.toast(ui_layer, "No alcanzan las monedas", UiKit.BAD)
+		return
+	if not _restore.has("fixtures"):
+		_restore["fixtures"] = {}
+	_restore.fixtures[name] = true
+	_restore.spent = int(_restore.get("spent", 0)) + int(fx.cost)
+	view.fix_fixture(name, true)
+	Sfx.play("tool")
+	UiKit.toast(ui_layer, "%s: arreglado (+%d valor)" % [fx.name, int(fx.value)], UiKit.GOOD, 1.4)
 	_after_restore_change()
 
 

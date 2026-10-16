@@ -23,7 +23,13 @@ const CONTINUE_RETURN_ITEMS := 3
 ## Segunda estrella si queda al menos esta fracción del tiempo.
 const STAR2_TIME_FRACTION := 0.30
 ## Limpieza mínima para dar por terminada la restauración.
-const CLEAN_REQUIRED := 0.90
+const CLEAN_REQUIRED := 0.85
+
+## Arreglos propios de cada habitación (ver "fixtures" en los layouts).
+const FIXTURES := {
+	"window": {"name": "Vidrio roto", "cost": 20, "value": 45},
+	"lamp": {"name": "Lámpara que parpadea", "cost": 15, "value": 30},
+}
 
 const PAINT_COLORS := [
 	{"id": "crema", "name": "Crema", "color": "#efe3c8", "price": 0, "value": 10},

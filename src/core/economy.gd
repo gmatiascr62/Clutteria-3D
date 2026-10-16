@@ -72,6 +72,10 @@ static func room_restoration_value(layout_id: String, restore: Dictionary) -> in
 			v += repair_value(f)
 		elif furn[k] == "replaced":
 			v += replace_value(f)
+	var fixed: Dictionary = restore.get("fixtures", {})
+	for f in fixed:
+		if fixed[f] and Balance.FIXTURES.has(f):
+			v += int(Balance.FIXTURES[f].value)
 	v += int(restore.get("treasure_value", 0))
 	return v
 

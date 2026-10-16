@@ -71,3 +71,9 @@ func test_time_scales_with_difficulty() -> void:
 	var t2 := Balance.level_time(big.info)
 	check(t1 >= 90 and t1 <= 240, "30 objetos: entre 1:30 y 4:00 (%d s)" % t1)
 	check(t2 > t1 * 5, "240 objetos llevan bastante más tiempo (%d s)" % t2)
+
+
+func test_fixtures_add_value() -> void:
+	var base := Economy.room_restoration_value("studio", {})
+	var fixed := Economy.room_restoration_value("studio", {"fixtures": {"window": true, "lamp": true}})
+	eq(fixed - base, int(Balance.FIXTURES.window.value) + int(Balance.FIXTURES.lamp.value), "los arreglos suman valor")

@@ -161,7 +161,7 @@ static func toast(parent: Node, text: String, color := TEXT, duration := 1.6) ->
 	bg.add_theme_stylebox_override("panel", _box(Color(0.08, 0.09, 0.12, 0.88), 16))
 	bg.add_child(l)
 	bg.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	bg.position = Vector2(-260, 96)
+	bg.position = Vector2(-260, 186)
 	bg.custom_minimum_size = Vector2(520, 0)
 	bg.anchor_left = 0.5
 	bg.anchor_right = 0.5

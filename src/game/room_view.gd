@@ -29,6 +29,14 @@ var piece_nodes: Array = []
 var stain_nodes: Array = [] # {node, image, texture, total, dirty_px}
 var marker_nodes: Array = []
 var _hint_markers: Dictionary = {} # contenedor -> nodo marcador
+var _fixed: Dictionary = {} # arreglos de la restauración ya hechos
+var _fixture_nodes: Dictionary = {} # nombre -> {body, ...}
+var lamp_light: OmniLight3D
+var bulb_material: StandardMaterial3D
+var _flicker: Tween
+var _debris: Array[MultiMeshInstance3D] = []
+var _session: RoomSession
+static var _covered_overlay: StandardMaterial3D
 ## Label3D genera errores espurios con el renderer "dummy" (modo headless).
 var _labels_3d := DisplayServer.get_name() != "headless"
 
@@ -38,6 +46,7 @@ func build(p_level: Dictionary, restore: Dictionary) -> void:
 	layout_id = level.layout
 	L = PropertyCatalog.LAYOUTS[layout_id]
 	geo = LayoutGeometry.get_geometry(layout_id)
+	_fixed = restore.get("fixtures", {}).duplicate()
 	_build_environment()
 	_build_shell(restore)
 	_build_furniture(restore)
@@ -45,6 +54,8 @@ func build(p_level: Dictionary, restore: Dictionary) -> void:
 	_build_stains(restore)
 	_build_markers()
 	_build_pieces()
+	_build_debris()
+	_build_mounds()
 
 
 # --- Ambiente y cáscara -----------------------------------------------------
@@ -87,6 +98,14 @@ func _build_environment() -> void:
 	bulb.material_override = bm
 	bulb.position = Vector3(0, size.y - 0.1, 0)
 	add_child(bulb)
+	lamp_light = lamp
+	bulb_material = bm
+	if "lamp" in L.get("fixtures", []):
+		var body := _static_box(self, Vector3(0.4, 0.3, 0.4), bulb.position, LAYER_WORLD)
+		body.set_meta("fixture", "lamp")
+		_fixture_nodes["lamp"] = {"body": body}
+		if not _fixed.get("lamp", false):
+			_start_flicker()
 
 
 func _static_box(parent: Node3D, size: Vector3, center: Vector3, layer: int) -> StaticBody3D:
@@ -202,6 +221,20 @@ func _build_window() -> void:
 	glass.material_override = gm
 	glass.position = Vector3(w.pos.x, w.pos.y, 0.006)
 	holder.add_child(glass)
+	if "window" in L.get("fixtures", []):
+		var crack := MeshInstance3D.new()
+		var cq := QuadMesh.new()
+		cq.size = w.size
+		crack.mesh = cq
+		var cm := ShaderMaterial.new()
+		cm.shader = load("res://src/game/shaders/crack.gdshader")
+		crack.material_override = cm
+		crack.position = Vector3(w.pos.x, w.pos.y, 0.012)
+		crack.visible = not _fixed.get("window", false)
+		holder.add_child(crack)
+		var body := _static_box(holder, Vector3(w.size.x, w.size.y, 0.04), Vector3(w.pos.x, w.pos.y, 0.03), LAYER_WORLD)
+		body.set_meta("fixture", "window")
+		_fixture_nodes["window"] = {"body": body, "crack": crack, "glass": glass}
 	var fm := StandardMaterial3D.new()
 	fm.albedo_color = Color(0.95, 0.94, 0.9)
 	for spec in [[Vector3(w.size.x + 0.1, 0.06, 0.05), Vector3(0, w.size.y * 0.5, 0)], [Vector3(w.size.x + 0.1, 0.06, 0.05), Vector3(0, -w.size.y * 0.5, 0)],
@@ -269,6 +302,7 @@ func _build_furniture(restore: Dictionary) -> void:
 		node.add_child(mi)
 		var s: Vector3 = f.size
 		var body := _static_box(node, s, Vector3(0, s.y * 0.5, 0), LAYER_WORLD)
+		body.set_meta("furniture", fi)
 		furniture_nodes.append({"node": node, "mesh": mi, "material": mat, "body": body, "def": f})
 
 
@@ -426,6 +460,192 @@ func close_container(ci: int, animate: bool, show_marker: bool, on_done := Calla
 			on_done.call()
 
 
+# --- Arreglos de la restauración ---------------------------------------------
+
+func _start_flicker() -> void:
+	_flicker = create_tween().set_loops()
+	var set_level := func(v: float):
+		lamp_light.light_energy = 1.25 * v
+		bulb_material.emission_energy_multiplier = 2.0 * v
+	_flicker.tween_method(set_level, 1.0, 0.15, 0.05)
+	_flicker.tween_method(set_level, 0.15, 0.9, 0.08)
+	_flicker.tween_method(set_level, 0.9, 0.25, 0.05)
+	_flicker.tween_method(set_level, 0.25, 0.85, 0.06)
+	_flicker.tween_interval(1.6)
+	_flicker.tween_method(set_level, 0.85, 0.3, 0.07)
+	_flicker.tween_method(set_level, 0.3, 0.85, 0.1)
+	_flicker.tween_interval(2.3)
+
+
+func is_fixed(name: String) -> bool:
+	return _fixed.get(name, false)
+
+
+func fix_fixture(name: String, animate: bool) -> void:
+	_fixed[name] = true
+	match name:
+		"lamp":
+			if _flicker:
+				_flicker.kill()
+				_flicker = null
+			lamp_light.light_energy = 1.35
+			bulb_material.emission_energy_multiplier = 2.2
+			if animate:
+				var tw := create_tween()
+				tw.tween_property(bulb_material, "emission_energy_multiplier", 5.0, 0.15)
+				tw.tween_property(bulb_material, "emission_energy_multiplier", 2.2, 0.4)
+		"window":
+			var fn: Dictionary = _fixture_nodes.get("window", {})
+			if fn.is_empty():
+				return
+			var crack: MeshInstance3D = fn.crack
+			if animate:
+				var tw := create_tween()
+				tw.tween_property(crack, "scale", Vector3(1.05, 1.05, 1), 0.1)
+				tw.tween_property(crack, "scale", Vector3(0.01, 0.01, 1), 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+				tw.tween_callback(func(): crack.visible = false)
+			else:
+				crack.visible = false
+
+
+## Brillo breve sobre un mueble (al elegirlo para restaurar).
+func highlight_furniture(fi: int) -> void:
+	var mi: MeshInstance3D = furniture_nodes[fi].mesh
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(1.0, 0.85, 0.3, 0.45)
+	mi.material_overlay = m
+	var tw := mi.create_tween()
+	tw.tween_property(m, "albedo_color:a", 0.0, 0.9)
+	tw.tween_callback(func(): mi.material_overlay = null)
+
+
+# --- Basura decorativa -------------------------------------------------------
+
+## Papeles, bolsas y manchas que no se recogen: hacen que la habitación se vea
+## abarrotada. Son planos (no tapan objetos) y van desapareciendo a medida que
+## se limpia. Se dibujan con MultiMesh (instancing).
+func _build_debris() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(level.seed) * 31 + 7
+	var floor_cells := []
+	for c in geo.cells:
+		if not c.surface:
+			floor_cells.append(c)
+	if floor_cells.is_empty():
+		return
+	var kinds := [_debris_mesh("paper"), _debris_mesh("sheet"), _debris_mesh("bag"), _debris_mesh("dirt"), _debris_mesh("cardboard")]
+	var total := clampi(60 + int(level.items), 60, 260)
+	var per := []
+	for k in kinds.size():
+		per.append([])
+	# La mayoría alrededor de las pilas del piso (montones), el resto disperso.
+	var floor_piles := []
+	for p in level.piles:
+		if not p.surface:
+			floor_piles.append(p.base)
+	for i in total:
+		var pos: Vector3
+		if not floor_piles.is_empty() and rng.randf() < 0.7:
+			var b: Vector3 = floor_piles[rng.randi_range(0, floor_piles.size() - 1)]
+			var ang := rng.randf_range(0, TAU)
+			pos = b + Vector3(cos(ang), 0, sin(ang)) * rng.randf_range(0.12, 0.38)
+		else:
+			var c: Dictionary = floor_cells[rng.randi_range(0, floor_cells.size() - 1)]
+			pos = c.pos + Vector3(rng.randf_range(-0.2, 0.2), 0, rng.randf_range(-0.2, 0.2))
+		var room: Vector3 = L.size
+		pos.x = clampf(pos.x, -room.x * 0.5 + 0.1, room.x * 0.5 - 0.1)
+		pos.z = clampf(pos.z, -room.z * 0.5 + 0.1, room.z * 0.5 - 0.1)
+		pos.y = 0.002 + rng.randf() * 0.002
+		var xf := Transform3D(Basis(Vector3.UP, rng.randf_range(0, TAU)), pos)
+		per[rng.randi_range(0, kinds.size() - 1)].append(xf)
+	for k in kinds.size():
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = kinds[k]
+		mm.instance_count = per[k].size()
+		for i in per[k].size():
+			mm.set_instance_transform(i, per[k][i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.material_override = MeshKit.trash_material()
+		add_child(mmi)
+		_debris.append(mmi)
+
+
+static func _debris_mesh(kind: String) -> ArrayMesh:
+	var k := MeshKit.new()
+	match kind:
+		"paper":
+			k.sphere(0.035, Vector3(0, 0.012, 0), Color(0.86, 0.85, 0.8), Vector3(1.2, 0.4, 1.0), 6)
+		"sheet":
+			k.box(Vector3(0.15, 0.003, 0.11), Vector3(0, 0.0015, 0), Color(0.93, 0.92, 0.86), Basis(Vector3.RIGHT, 0.04))
+		"bag":
+			k.sphere(0.07, Vector3(0, 0.014, 0), Color(0.1, 0.1, 0.11), Vector3(1.3, 0.3, 1.0), 10)
+			k.sphere(0.035, Vector3(0.05, 0.02, 0.02), Color(0.2, 0.2, 0.22), Vector3(1.0, 0.5, 1.0), 8)
+		"dirt":
+			k.cyl(0.1, 0.12, 0.004, Vector3(0, 0.002, 0), Color(0.33, 0.27, 0.19), Basis(), 9)
+		"cardboard":
+			k.box(Vector3(0.3, 0.008, 0.22), Vector3(0, 0.004, 0), Color(0.62, 0.47, 0.32), Basis(Vector3.RIGHT, 0.03))
+			k.box(Vector3(0.3, 0.009, 0.03), Vector3(0, 0.005, 0.05), Color(0.78, 0.7, 0.52))
+	return k.commit()
+
+
+## Montón bajo cada pila del piso: desaparece cuando se vacía la pila.
+var _mounds: MultiMeshInstance3D
+var _mound_pile: Array = []
+
+
+func _build_mounds() -> void:
+	var k := MeshKit.new()
+	k.sphere(0.27, Vector3(0, 0, 0), Color(0.3, 0.26, 0.2), Vector3(1.0, 0.09, 1.0), 10)
+	k.sphere(0.14, Vector3(0.1, 0.0, -0.06), Color(0.36, 0.31, 0.24), Vector3(1.0, 0.12, 1.0), 8)
+	var mesh := k.commit()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(level.seed) + 99
+	var xfs := []
+	for pi in level.piles.size():
+		var p: Dictionary = level.piles[pi]
+		if p.surface:
+			continue
+		xfs.append(Transform3D(Basis(Vector3.UP, rng.randf_range(0, TAU)).scaled(Vector3.ONE * rng.randf_range(0.9, 1.15)), p.base + Vector3(0, 0.003, 0)))
+		_mound_pile.append(pi)
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = xfs.size()
+	for i in xfs.size():
+		mm.set_instance_transform(i, xfs[i])
+	_mounds = MultiMeshInstance3D.new()
+	_mounds.multimesh = mm
+	_mounds.material_override = MeshKit.trash_material()
+	add_child(_mounds)
+
+
+func _update_mounds(session: RoomSession) -> void:
+	if _mounds == null:
+		return
+	for i in _mound_pile.size():
+		var pile: Dictionary = level.piles[_mound_pile[i]]
+		var any := false
+		for sid in pile.slots:
+			var pid: int = session.slot_piece[sid]
+			if pid >= 0 and session.present[pid]:
+				any = true
+				break
+		var xf := _mounds.multimesh.get_instance_transform(i)
+		if not any and xf.basis.get_scale().x > 0.01:
+			_mounds.multimesh.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * 0.001), xf.origin))
+
+
+## fraction: parte de la basura decorativa que sigue visible (0..1).
+func set_debris_fraction(fraction: float) -> void:
+	for mmi in _debris:
+		var n := mmi.multimesh.instance_count
+		mmi.multimesh.visible_instance_count = int(ceil(n * clampf(fraction, 0.0, 1.0)))
+
+
 # --- Manchas ------------------------------------------------------------------
 
 func _build_stains(restore: Dictionary) -> void:
@@ -479,7 +699,7 @@ static func _in_stain(x: int, y: int) -> bool:
 
 
 ## Frota en coordenadas UV de la mancha. Devuelve true si cambió algo.
-func scrub(si: int, uv: Vector2, radius := 0.13, strength := 0.45) -> bool:
+func scrub(si: int, uv: Vector2, radius := 0.18, strength := 0.6) -> bool:
 	var sn: Dictionary = stain_nodes[si]
 	var img: Image = sn.image
 	var cx := uv.x * MASK_RES
@@ -650,9 +870,43 @@ func place_piece(pid: int, session: RoomSession) -> void:
 	var hidden := session.is_hidden(pid)
 	node.visible = not hidden
 	pn.body.collision_layer = 0 if hidden else LAYER_INTERACT
+	# Lo que todavía está tapado se ve más oscuro.
+	if not pn.get("flashing", false):
+		pn.mesh.material_overlay = covered_overlay() if (not hidden and not session.is_accessible(pid)) else null
+
+
+static func covered_overlay() -> StandardMaterial3D:
+	if _covered_overlay == null:
+		_covered_overlay = StandardMaterial3D.new()
+		_covered_overlay.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_covered_overlay.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_covered_overlay.albedo_color = Color(0.0, 0.0, 0.02, 0.42)
+	return _covered_overlay
+
+
+## Resalta una pieza (la que hay que sacar primero) con un brillo que late.
+func flash_piece(pid: int) -> void:
+	var pn: Dictionary = piece_nodes[pid]
+	var mi: MeshInstance3D = pn.mesh
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(1.0, 0.9, 0.3, 0.0)
+	mi.material_overlay = m
+	pn["flashing"] = true
+	var tw := mi.create_tween()
+	for i in 3:
+		tw.tween_property(m, "albedo_color:a", 0.75, 0.18)
+		tw.tween_property(m, "albedo_color:a", 0.0, 0.22)
+	tw.tween_callback(func():
+		pn["flashing"] = false
+		if _session:
+			place_piece(pid, _session))
 
 
 func place_all(session: RoomSession) -> void:
+	_session = session
+	_update_mounds(session)
 	for p in level.pieces:
 		place_piece(p.id, session)
 

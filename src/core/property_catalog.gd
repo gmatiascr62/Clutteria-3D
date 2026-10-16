@@ -6,7 +6,7 @@ extends RefCounted
 
 const LAYOUTS := {
 	"studio": {
-		"max_items": 150, "name": "Monoambiente", "theme": "studio", "size": Vector3(5.0, 2.7, 4.4),
+		"fixtures": ["window", "lamp"], "max_items": 150, "name": "Monoambiente", "theme": "studio", "size": Vector3(5.0, 2.7, 4.4),
 		"floor": "wood", "floor_color": "#9c7a55", "wall_color": "#d8cdb6",
 		"window": {"wall": "west", "pos": Vector2(1.0, 1.5), "size": Vector2(1.2, 0.9)},
 		"door": {"wall": "south", "pos": -1.0},
@@ -27,7 +27,7 @@ const LAYOUTS := {
 		],
 	},
 	"bathroom": {
-		"max_items": 75, "name": "Baño", "theme": "bathroom", "size": Vector3(3.9, 2.6, 3.4),
+		"fixtures": ["lamp"], "max_items": 75, "name": "Baño", "theme": "bathroom", "size": Vector3(3.9, 2.6, 3.4),
 		"floor": "tile", "floor_color": "#cfd8dc", "wall_color": "#cfe3e6",
 		"window": {"wall": "north", "pos": Vector2(0.9, 1.8), "size": Vector2(0.7, 0.5)},
 		"door": {"wall": "south", "pos": 1.1},
@@ -46,7 +46,7 @@ const LAYOUTS := {
 		],
 	},
 	"kitchen": {
-		"max_items": 210, "name": "Cocina", "theme": "kitchen", "size": Vector3(5.0, 2.7, 4.0),
+		"fixtures": ["window"], "max_items": 210, "name": "Cocina", "theme": "kitchen", "size": Vector3(5.0, 2.7, 4.0),
 		"floor": "tile", "floor_color": "#bfae94", "wall_color": "#e9dfc5",
 		"window": {"wall": "west", "pos": Vector2(0.3, 1.5), "size": Vector2(1.1, 0.9)},
 		"door": {"wall": "south", "pos": -0.2},
@@ -65,7 +65,7 @@ const LAYOUTS := {
 		],
 	},
 	"bedroom": {
-		"max_items": 210, "name": "Dormitorio", "theme": "bedroom", "size": Vector3(4.6, 2.7, 4.2),
+		"fixtures": ["window", "lamp"], "max_items": 210, "name": "Dormitorio", "theme": "bedroom", "size": Vector3(4.6, 2.7, 4.2),
 		"floor": "wood", "floor_color": "#a07d58", "wall_color": "#d9d2e4",
 		"window": {"wall": "east", "pos": Vector2(-1.0, 1.5), "size": Vector2(1.1, 0.9)},
 		"door": {"wall": "south", "pos": 1.4},
@@ -85,7 +85,7 @@ const LAYOUTS := {
 		],
 	},
 	"living": {
-		"max_items": 240, "name": "Living", "theme": "living", "size": Vector3(5.6, 2.8, 4.6),
+		"fixtures": ["lamp", "window"], "max_items": 240, "name": "Living", "theme": "living", "size": Vector3(5.6, 2.8, 4.6),
 		"floor": "wood", "floor_color": "#8f6c4c", "wall_color": "#e3d7c3",
 		"window": {"wall": "east", "pos": Vector2(1.0, 1.5), "size": Vector2(1.4, 1.0)},
 		"door": {"wall": "west", "pos": -1.2},
@@ -109,7 +109,7 @@ const LAYOUTS := {
 		],
 	},
 	"attic": {
-		"max_items": 240, "name": "Altillo", "theme": "attic", "size": Vector3(5.0, 2.5, 4.4),
+		"fixtures": ["window", "lamp"], "max_items": 240, "name": "Altillo", "theme": "attic", "size": Vector3(5.0, 2.5, 4.4),
 		"floor": "wood", "floor_color": "#7f6448", "wall_color": "#cbbfa8",
 		"window": {"wall": "east", "pos": Vector2(-0.6, 1.4), "size": Vector2(0.8, 0.6)},
 		"door": {"wall": "south", "pos": 1.6},

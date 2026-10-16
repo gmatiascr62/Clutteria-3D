@@ -269,3 +269,73 @@ func test_tap_open_drawer_front_closes_it() -> void:
 			check(not view.piece_nodes[pid].node.visible, "el contenido queda oculto")
 	scene.queue_free()
 	await _frames(1)
+
+
+func test_covered_tap_highlights_piece_on_top() -> void:
+	var scene := await _open_scene("living", 90, 0.3, 17)
+	var s: RoomSession = scene.session
+	var covered := -1
+	for p in s.level.pieces:
+		if p.kind == "trash" and not s.is_hidden(p.id) and not s.is_accessible(p.id):
+			covered = p.id
+			break
+	if not check(covered >= 0, "hay un objeto tapado"):
+		return
+	check(scene.view.piece_nodes[covered].mesh.material_overlay != null, "lo tapado se ve oscurecido")
+	scene._on_piece_tapped(covered)
+	var flashing := false
+	for pn in scene.view.piece_nodes:
+		if pn.get("flashing", false):
+			flashing = true
+	check(flashing, "se resalta lo que hay que sacar primero")
+	scene.queue_free()
+	await _frames(1)
+
+
+func test_debris_thins_out_while_cleaning() -> void:
+	var scene := await _open_scene("kitchen", 60, 0.2, 5)
+	var s: RoomSession = scene.session
+	var count := func() -> int:
+		var n := 0
+		for mmi in scene.view._debris:
+			n += mmi.multimesh.visible_instance_count if mmi.multimesh.visible_instance_count >= 0 else mmi.multimesh.instance_count
+		return n
+	var before: int = count.call()
+	check(before > 30, "hay basura decorativa (%d)" % before)
+	for c in s.level.containers.size():
+		s.open_container(c)
+	var steps: Array = Solver.solve(s.level, s.solver_state()).steps
+	for k in 30:
+		s.take(steps[k])
+	check(count.call() < before, "disminuye al limpiar")
+	scene.queue_free()
+	await _frames(1)
+
+
+func test_restoration_fixtures_and_furniture_tap() -> void:
+	var game = runner.root.get_node("Game")
+	game.reset_progress()
+	game.profile.coins = 500
+	var scene := await _open_scene("studio", 30, 0.0, 3)
+	var s: RoomSession = scene.session
+	for i in s.present.size():
+		s.present[i] = false
+	scene.view.place_all(s)
+	scene._start_restoration()
+	await _frames(2)
+	var coins := int(game.profile.coins)
+	scene._on_fixture("window")
+	check(scene.view.is_fixed("window"), "el vidrio queda arreglado")
+	check(scene._restore.fixtures.window, "se guarda en la restauración")
+	eq(int(game.profile.coins), coins - int(Balance.FIXTURES.window.cost), "cuesta monedas")
+	# Tocar un mueble en la habitación lo elige en el panel.
+	var cam: Camera3D = scene.camera
+	var fn: Dictionary = scene.view.furniture_nodes[0]
+	var vp: Vector2 = scene.layout.viewpoints[0]
+	cam.global_position = Vector3(vp.x, LayoutGeometry.EYE_HEIGHT, vp.y)
+	cam.look_at(fn.node.global_position + Vector3(0, fn.def.size.y * 0.6, 0), Vector3.UP)
+	var center := scene.get_viewport().get_visible_rect().size * 0.5
+	check(scene._tap_restore(center), "tocar el mueble se registra")
+	eq(scene.restore_panel._selected, 0, "queda elegido en el panel")
+	scene.queue_free()
+	await _frames(1)

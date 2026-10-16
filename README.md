@@ -17,7 +17,7 @@ Verificado en este repositorio (no en un teléfono real):
 | Verificación | Cómo |
 |---|---|
 | Todos los scripts compilan | `tools/check_scripts.gd` (local y CI) |
-| 50 pruebas automáticas pasan | `tests/run_tests.gd` (local y CI) |
+| 54 pruebas automáticas pasan | `tests/run_tests.gd` (local y CI) |
 | Cada habitación del catálogo genera niveles válidos y resolubles con varias semillas | `test_generator.gd` (más de 150 niveles) |
 | Todos los objetos se pueden tocar con raycast real, en orden de solución, desde algún punto de observación | `test_room_scene.gd` (660 objetos en 6 habitaciones, de 30 a 240 objetos) |
 | La escena se ve bien | Capturas renderizadas con OpenGL (Mesa/Xvfb) usando `tools/screenshot.gd` |
@@ -37,6 +37,10 @@ economía es una **primera propuesta** que hay que calibrar con jugadores.
   los tríos tienen destello, estrellas y sonido que sube de tono en combos;
   la bandeja late en rojo con 6 ocupados; vibración opcional (Opciones).
 - **Cajones:** tocarlos los abre; tocar el frente de uno abierto lo cierra.
+- **Basura decorativa:** montones bajo cada pila, papeles, bolsas y cartones
+  (MultiMesh). No se recogen y van desapareciendo a medida que limpiás.
+- **Objetos tapados:** se ven más oscuros; al tocarlos se resalta lo que hay
+  que sacar primero.
 - **Velocidad de cámara:** por defecto casi al mínimo; se ajusta en Opciones.
 - **Tocar basura:** desaparece al instante y va a la bandeja de 7 espacios.
   La selección es *asistida*: se elige el objeto visible más próximo al
@@ -54,7 +58,9 @@ economía es una **primera propuesta** que hay que calibrar con jugadores.
   y sólo acepta mezclas que el solver confirma resolubles), Reloj (+30 s).
 - **Bandeja llena sin trío:** se pausa y se ofrece Papelera o Imán. Si no
   tenés ninguna, perdés (y una vida si es un nivel nuevo).
-- **Restauración (sin reloj):** frotá las manchas (mínimo 90 %), elegí pintura
+- **Restauración (sin reloj):** frotá las manchas (mínimo 85 %); arreglos
+  propios de cada habitación (vidrio roto, lámpara que parpadea) que se tocan
+  en la habitación; los muebles también se eligen tocándolos, elegí pintura
   (básicas gratis, especiales con monedas; se pinta sola con animación) y
   reparar o reemplazar muebles. Al final se muestra antes/después y el valor
   agregado.
