@@ -34,14 +34,35 @@ static func generate(layout_id: String, item_count: int, difficulty: float, seed
 		trios.append(variants[rng.randi_range(0, variants.size() - 1)])
 	_shuffle(trios, rng)
 
-	# 2) Piezas en orden de solución.
+	# 2) Piezas en orden de solución, intercalando tríos: hasta `max_open`
+	# tríos pueden estar "a medias" a la vez. Así arriba de las pilas no quedan
+	# tríos completos y hay que guardar objetos en la bandeja. La bandeja
+	# nunca supera 2 * max_open objetos (<= 6), por lo que sigue siendo resoluble.
+	var max_open: int = opts.get("max_open", max_open_for(difficulty))
 	var pieces := []
 	var solution := []
-	for t in trios:
-		for k in 3:
-			var id := pieces.size()
-			pieces.append({"id": id, "kind": "trash", "variant": t})
-			solution.append(id)
+	var open_trios := []
+	var queue := trios.duplicate()
+	while not queue.is_empty() or not open_trios.is_empty():
+		var can_open := open_trios.size() < max_open and not queue.is_empty()
+		var variant := ""
+		if can_open and (open_trios.is_empty() or rng.randf() < 0.35):
+			variant = queue.pop_back()
+			open_trios.append({"variant": variant, "left": 2})
+		else:
+			# Se avanza casi siempre el trío más nuevo: los más viejos quedan
+			# abiertos mucho tiempo, así sus piezas terminan en capas distintas
+			# (una arriba, las otras enterradas) y hay que cargarlas en la bandeja.
+			var k := open_trios.size() - 1
+			if rng.randf() < 0.2:
+				k = rng.randi_range(0, open_trios.size() - 1)
+			variant = open_trios[k].variant
+			open_trios[k].left -= 1
+			if open_trios[k].left == 0:
+				open_trios.remove_at(k)
+		var id := pieces.size()
+		pieces.append({"id": id, "kind": "trash", "variant": variant})
+		solution.append(id)
 	var mystery_n: int = opts.get("mystery", PropertyCatalog.mystery_count(item_count))
 	var mysteries := []
 	for m in mystery_n:
@@ -167,6 +188,19 @@ static func generate(layout_id: String, item_count: int, difficulty: float, seed
 	for c in chosen:
 		var mx := 2 if c.surface else floor_max
 		piles.append({"cell": c, "cap": rng.randi_range(1, mx), "max": mx, "slots": []})
+	# Pilas "señuelo" de un solo objeto: con dificultad, algunas pilas a la vista
+	# muestran piezas de los ÚLTIMOS tríos (una por variante) cuyas compañeras
+	# están enterradas. Se ven desde el principio pero todavía no conviene
+	# tomarlas: eso le da decisiones a la bandeja. Una pieza sola en su pila no
+	# tapa a nadie, así que el orden de la solución no cambia.
+	# Usan celdas libres sobrantes, así no restan capacidad a las pilas normales.
+	var decoy_n := int(round(piles.size() * lerpf(0.0, 0.3, difficulty)))
+	var decoy_cells := []
+	for c in cells:
+		if decoy_cells.size() >= decoy_n:
+			break
+		if not chosen.has(c) and not c.surface:
+			decoy_cells.append(c)
 	var total_cap := func() -> int:
 		var s := 0
 		for p in piles:
@@ -225,6 +259,29 @@ static func generate(layout_id: String, item_count: int, difficulty: float, seed
 		var pi_m: int = floor_piles[rng.randi_range(0, floor_piles.size() - 1)]
 		piles[pi_m].cap += 1
 		push_on_pile.call(pi_m, m)
+	var decoy_piles := []
+	for c in decoy_cells:
+		if chosen.has(c):
+			continue # la tomó el crecimiento de capacidad
+		chosen.append(c)
+		piles.append({"cell": c, "cap": 0, "max": 1, "slots": []})
+		decoy_piles.append(piles.size() - 1)
+	var decoy_items := []
+	var decoy_variants := {}
+	for pid in remaining:
+		if decoy_items.size() >= decoy_piles.size():
+			break
+		if solution.find(pid) < solution.size() / 2:
+			break # sólo piezas de la segunda mitad de la solución
+		var v: String = pieces[pid].variant
+		if not decoy_variants.has(v):
+			decoy_variants[v] = true
+			decoy_items.append(pid)
+	for i in decoy_items.size():
+		remaining.erase(decoy_items[i])
+		var pi_d: int = decoy_piles[i]
+		piles[pi_d].cap = piles[pi_d].slots.size() + 1
+		push_on_pile.call(pi_d, decoy_items[i])
 	for pid in remaining:
 		var total_free := 0
 		for p in piles:
@@ -259,8 +316,18 @@ static func generate(layout_id: String, item_count: int, difficulty: float, seed
 		"piles": pile_out, "containers": containers, "solution": solution,
 		"viewpoints": L.viewpoints.size(),
 	}
+	level["max_open"] = max_open
 	level["info"] = difficulty_info(level)
 	return level
+
+
+## Tríos que pueden quedar a medias en la solución según la dificultad.
+static func max_open_for(difficulty: float) -> int:
+	if difficulty < 0.12:
+		return 1
+	if difficulty < 0.4:
+		return 2
+	return 3
 
 
 ## Datos para calcular el tiempo (ver Balance.level_time).
@@ -315,7 +382,7 @@ static func _pick_variants(theme: String, trio_count: int, difficulty: float, rn
 	var fams := TrashCatalog.families_for_theme(theme).duplicate()
 	_shuffle(fams, rng)
 	# Cantidad de variantes distintas: más tríos y más dificultad => más variedad.
-	var want := clampi(int(round(trio_count * lerpf(0.75, 0.55, difficulty))), 3, 40)
+	var want := clampi(int(round(trio_count * lerpf(0.6, 0.9, difficulty))), 3, 60)
 	want = mini(want, trio_count)
 	var per_family_max := 1 + int(round(difficulty * 2.0))
 	var out := []

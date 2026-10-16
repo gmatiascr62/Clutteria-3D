@@ -56,6 +56,8 @@ var _restore_dirty := false
 var _tut_steps: Array = []
 var _tut_index := -1
 var _tut_prefix := ""
+var _combo := 0
+var _last_trio_ms := -100000
 
 
 func _ready() -> void:
@@ -113,6 +115,7 @@ func _ready() -> void:
 	hud.build(layout.viewpoints.size())
 	hud.set_viewpoint(vp_index)
 	hud.tray_view.refresh(session.tray)
+	hud.tray_view.set_warning(session.tray.slots.size() >= Balance.TRAY_SIZE - 1)
 	hud.update_state(session)
 	hud.pause_pressed.connect(_pause)
 	hud.tool_pressed.connect(_on_tool)
@@ -123,7 +126,9 @@ func _ready() -> void:
 	session.piece_removed.connect(_on_piece_removed)
 	session.pieces_returned.connect(func(_p): view.place_all(session))
 	session.layout_changed.connect(_on_layout_changed)
-	session.tray_changed.connect(func(): hud.tray_view.refresh(session.tray))
+	session.tray_changed.connect(func():
+		hud.tray_view.refresh(session.tray)
+		hud.tray_view.set_warning(session.tray.slots.size() >= Balance.TRAY_SIZE - 1))
 	session.trio_cleared.connect(_on_trio)
 	session.container_opened.connect(func(ci):
 		view.open_container(ci, true)
@@ -295,12 +300,14 @@ func pick_at(screen: Vector2) -> Object:
 	var dir := camera.project_ray_normal(screen)
 	var mask := RoomView.LAYER_WORLD | RoomView.LAYER_INTERACT
 	var hit := _ray(from, from + dir * 15.0, mask)
-	if not hit.is_empty() and hit.collider.has_meta("kind"):
-		return hit.collider
-	# Toque directo sobre el frente de un cajón abierto (para cerrarlo).
+	# Frente de un cajón abierto: gana si está delante de lo que tocó el rayo
+	# (lo que está detrás del frente no se ve en ese punto).
 	var close_hit := _ray(from, from + dir * 15.0, RoomView.LAYER_WORLD | RoomView.LAYER_CLOSE)
 	if not close_hit.is_empty() and close_hit.collider.has_meta("kind"):
-		return close_hit.collider
+		if hit.is_empty() or from.distance_to(close_hit.position) <= from.distance_to(hit.position):
+			return close_hit.collider
+	if not hit.is_empty() and hit.collider.has_meta("kind"):
+		return hit.collider
 	var best: Object = null
 	var best_d := PICK_RADIUS * _ui_scale()
 	for c in _candidates():
@@ -354,7 +361,12 @@ func _on_piece_tapped(pid: int) -> void:
 	if r.ok:
 		if r.get("special", "") == "":
 			Sfx.play("pick", randf_range(0.92, 1.08))
+			_vibrate(25)
 			_tut_event("pick")
+			if r.cleared != "":
+				hud.tray_view.burst(r.cleared_at)
+			else:
+				hud.tray_view.pulse(r.index)
 		_save_soon()
 	elif r.reason == "covered":
 		view.shake(pid)
@@ -373,9 +385,37 @@ func _on_piece_removed(pid: int) -> void:
 
 
 func _on_trio(_variant: String) -> void:
-	Sfx.play("trio")
+	# Tríos seguidos (menos de 4 s entre uno y otro) suben de tono.
+	var now := Time.get_ticks_msec()
+	_combo = _combo + 1 if now - _last_trio_ms < 4000 else 1
+	_last_trio_ms = now
+	Sfx.play("trio", 1.0 + 0.07 * mini(_combo - 1, 6))
+	_vibrate(70)
+	if _combo >= 2:
+		UiKit.toast(ui_layer, "¡Combo x%d!" % _combo, UiKit.ACCENT, 0.8)
 	_tut_event("trio")
 	_refresh_hud()
+
+
+func _vibrate(ms: int) -> void:
+	if bool(Game.setting("vibration")):
+		Input.vibrate_handheld(ms)
+
+
+## Texto que sube y se desvanece sobre un punto del mundo (p. ej. "+50").
+func _float_text(world_pos: Vector3, text: String, color: Color) -> void:
+	if camera.is_position_behind(world_pos):
+		return
+	var l := UiKit.label(text, 40, color)
+	l.add_theme_color_override("font_outline_color", Color(0.1, 0.08, 0.05))
+	l.add_theme_constant_override("outline_size", 10)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui_layer.add_child(l)
+	l.position = camera.unproject_position(world_pos) - Vector2(40, 30)
+	var tw := l.create_tween().set_parallel(true)
+	tw.tween_property(l, "position:y", l.position.y - 110, 1.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(l, "modulate:a", 0.0, 1.1).set_ease(Tween.EASE_IN)
+	tw.chain().tween_callback(l.queue_free)
 
 
 func _on_layout_changed(pids: Array) -> void:
@@ -395,6 +435,13 @@ func _on_special(pid: int, piece: Dictionary) -> void:
 	view.poof(pn.node.global_position + Vector3(0, 0.1, 0), Color(0.9, 0.6, 1.0))
 	if piece.kind == "mystery":
 		Sfx.play("mystery")
+		_vibrate(60)
+		var at: Vector3 = pn.node.global_position + Vector3(0, 0.2, 0)
+		match piece.prize.type:
+			"coins", "treasure":
+				_float_text(at, "+%d" % int(piece.prize.amount), UiKit.ACCENT)
+			"tool":
+				_float_text(at, "+1 " + Balance.TOOL_NAMES[piece.prize.tool].split(" ")[0], Color(0.6, 0.9, 1.0))
 		var text := Game.apply_prize(piece.prize)
 		UiKit.toast(ui_layer, "Caja misteriosa: " + text, UiKit.ACCENT, 2.2)
 	elif piece.kind == "key":

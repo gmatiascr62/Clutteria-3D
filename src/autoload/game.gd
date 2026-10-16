@@ -4,6 +4,8 @@ extends Node
 signal profile_changed
 
 const SAVE_PATH := "user://clutteria_save.json"
+## Velocidad de cámara por defecto: casi al mínimo del control (0.3 - 2.5).
+const DEFAULT_SENSITIVITY := 0.4
 
 ## Ruta del guardado (las pruebas y herramientas usan otra para no pisarlo).
 var save_path := SAVE_PATH
@@ -55,7 +57,7 @@ func new_profile() -> Dictionary:
 		"properties": {},
 		"neighborhoods": ["centro"],
 		"keys": {},
-		"settings": {"sensitivity": 1.0, "volume": 0.8, "mute": false, "show_fps": false},
+		"settings": {"sensitivity": DEFAULT_SENSITIVITY, "volume": 0.8, "mute": false, "show_fps": false, "vibration": true},
 		"tutorial": {},
 		"daily_claimed": -1,
 		"contracts_done": {},
@@ -76,6 +78,12 @@ func load_game() -> void:
 			profile.settings[k] = fresh.settings[k]
 	for t in Balance.START_TOOLS:
 		profile.tools[t] = int(profile.tools.get(t, 0))
+	# Migración: perfiles con la velocidad de cámara por defecto anterior (1.0)
+	# pasan al nuevo valor por defecto, una sola vez.
+	if not profile.settings.get("sens_v2", false):
+		if is_equal_approx(float(profile.settings.sensitivity), 1.0):
+			profile.settings.sensitivity = DEFAULT_SENSITIVITY
+		profile.settings["sens_v2"] = true
 	profile.coins = int(profile.coins)
 	profile.lives = int(profile.lives)
 	profile.life_ts = int(profile.life_ts)
@@ -342,6 +350,9 @@ func start_contract(c: Dictionary) -> String:
 
 func run_level() -> Dictionary:
 	var opts := {"key": int(run.get("key_for", -1)) >= 0}
+	# Con el desafío de no pasar de 5 espacios, la solución usa como mucho 4.
+	if run.get("challenge", "") == "tray_max5":
+		opts["max_open"] = mini(2, LevelGenerator.max_open_for(float(run.difficulty)))
 	return LevelGenerator.generate(run.layout, int(run.items), float(run.difficulty), int(run.seed), opts)
 
 

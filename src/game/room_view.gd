@@ -320,7 +320,9 @@ func _build_containers() -> void:
 		body.set_meta("drawer", di)
 		body.set_meta("container", ci)
 		var content := Node3D.new()
-		content.position = Vector3(0, -d.height * 0.5 + 0.016, -d.depth * 0.5)
+		# Cajón "desbordado": el contenido asoma por encima del frente para que
+		# se vea al abrirlo, aun en muebles altos.
+		content.position = Vector3(0, d.height * 0.5 - 0.05, -d.depth * 0.5)
 		node.add_child(content)
 		drawer_nodes.append({"node": node, "content": content, "body": body, "closed_pos": d.front, "def": d, "open": false})
 		if ci >= 0:

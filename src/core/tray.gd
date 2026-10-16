@@ -19,9 +19,15 @@ func add(variant: String, piece: int) -> Dictionary:
 	_seq += 1
 	slots.insert(insert_at, {"variant": variant, "piece": piece, "seq": _seq})
 	var fill := slots.size()
-	var result := {"cleared": "", "cleared_pieces": [], "full": false, "fill": fill}
+	# index: dónde cayó el objeto; cleared_at: primer espacio del trío eliminado.
+	var result := {"cleared": "", "cleared_pieces": [], "full": false, "fill": fill,
+		"index": insert_at, "cleared_at": -1}
 	if count(variant) >= 3:
 		result.cleared = variant
+		for i in slots.size():
+			if slots[i].variant == variant:
+				result.cleared_at = i
+				break
 		result.cleared_pieces = remove_variant(variant, 3)
 	result.full = slots.size() >= size
 	return result

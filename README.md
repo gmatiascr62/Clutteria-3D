@@ -17,7 +17,7 @@ Verificado en este repositorio (no en un teléfono real):
 | Verificación | Cómo |
 |---|---|
 | Todos los scripts compilan | `tools/check_scripts.gd` (local y CI) |
-| 43 pruebas automáticas pasan | `tests/run_tests.gd` (local y CI) |
+| 50 pruebas automáticas pasan | `tests/run_tests.gd` (local y CI) |
 | Cada habitación del catálogo genera niveles válidos y resolubles con varias semillas | `test_generator.gd` (más de 150 niveles) |
 | Todos los objetos se pueden tocar con raycast real, en orden de solución, desde algún punto de observación | `test_room_scene.gd` (660 objetos en 6 habitaciones, de 30 a 240 objetos) |
 | La escena se ve bien | Capturas renderizadas con OpenGL (Mesa/Xvfb) usando `tools/screenshot.gd` |
@@ -33,6 +33,11 @@ economía es una **primera propuesta** que hay que calibrar con jugadores.
 - **Arrastrar un dedo:** girar la vista 360° (arriba/abajo con límites).
 - **Pellizcar con dos dedos:** zoom (rueda del mouse en PC).
 - **Botones 1-2-3 o círculos celestes del piso:** cambiar de punto de observación.
+- **Respuesta al tocar:** el espacio de la bandeja donde cae el objeto late;
+  los tríos tienen destello, estrellas y sonido que sube de tono en combos;
+  la bandeja late en rojo con 6 ocupados; vibración opcional (Opciones).
+- **Cajones:** tocarlos los abre; tocar el frente de uno abierto lo cierra.
+- **Velocidad de cámara:** por defecto casi al mínimo; se ajusta en Opciones.
 - **Tocar basura:** desaparece al instante y va a la bandeja de 7 espacios.
   La selección es *asistida*: se elige el objeto visible más próximo al
   toque dentro de un radio chico, y nunca uno tapado por otro.
@@ -103,6 +108,17 @@ Agregar contenido sin tocar código del juego: nuevas variantes en
 `property_catalog.gd`, valores en `balance.gd`. Las pruebas recorren todo el
 catálogo, así que un layout inválido (sin espacio, objetos invisibles) falla
 en CI.
+
+### Tensión de la bandeja según la dificultad
+
+- La solución intercala tríos: hasta 1, 2 o 3 tríos pueden quedar "a medias"
+  (`LevelGenerator.max_open_for`). La bandeja nunca necesita más de 6 objetos.
+  En habitaciones con el desafío "no más de 5 espacios" se usan como mucho 2.
+- Con dificultad aparecen pilas "señuelo": piezas de los últimos tríos, a la
+  vista desde el principio, cuyas compañeras están enterradas.
+- Más dificultad = más variantes distintas. Medido en el living con 90
+  objetos: lo visible que ya forma tríos listos baja de ~61 % (fácil) a ~42 %
+  (difícil).
 
 ### Cómo se garantiza que los niveles son resolubles
 

@@ -32,6 +32,11 @@ static func make() -> Control:
 	mute.button_pressed = bool(Game.setting("mute"))
 	mute.toggled.connect(func(on): Game.set_setting("mute", on))
 	vb.add_child(mute)
+	var vib := CheckButton.new()
+	vib.text = "Vibración"
+	vib.button_pressed = bool(Game.setting("vibration"))
+	vib.toggled.connect(func(on): Game.set_setting("vibration", on))
+	vb.add_child(vib)
 	var fps := CheckButton.new()
 	fps.text = "Mostrar FPS y memoria"
 	fps.button_pressed = bool(Game.setting("show_fps"))

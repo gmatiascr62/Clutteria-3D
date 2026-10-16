@@ -94,11 +94,62 @@ func set_select_mode(on: bool, tray: Tray) -> void:
 	refresh(tray)
 
 
+## El espacio donde cayó el objeto se agranda y brilla un instante,
+## para que el ojo siga a dónde fue (no hay animación de vuelo).
 func pulse(index: int) -> void:
 	if index < 0 or index >= _slots.size():
 		return
 	var p: Control = _slots[index].panel
 	p.pivot_offset = p.size * 0.5
-	var tw := p.create_tween()
-	tw.tween_property(p, "scale", Vector2(1.12, 1.12), 0.08)
-	tw.tween_property(p, "scale", Vector2.ONE, 0.12)
+	p.modulate = Color(1.6, 1.5, 1.1)
+	var tw := p.create_tween().set_parallel(true)
+	tw.tween_property(p, "scale", Vector2(1.22, 1.22), 0.07).set_trans(Tween.TRANS_BACK)
+	tw.chain().tween_property(p, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(p, "modulate", Color.WHITE, 0.3)
+
+
+## Festejo de trío: destello sobre los tres espacios y estrellas que saltan.
+func burst(start: int, count := 3) -> void:
+	if start < 0 or _slots.is_empty():
+		return
+	var layer: Control = get_parent() if get_parent() is Control else self
+	var first: Control = _slots[clampi(start, 0, _slots.size() - 1)].panel
+	var last: Control = _slots[clampi(start + count - 1, 0, _slots.size() - 1)].panel
+	var rect := Rect2(first.global_position, Vector2(last.global_position.x + last.size.x - first.global_position.x, first.size.y))
+	var flash := ColorRect.new()
+	flash.color = Color(1.0, 0.95, 0.6, 0.85)
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	flash.size = rect.size
+	layer.add_child(flash)
+	flash.global_position = rect.position
+	var tw := flash.create_tween()
+	tw.tween_property(flash, "color:a", 0.0, 0.35)
+	tw.tween_callback(flash.queue_free)
+	for k in count:
+		for j in 2:
+			var st := VectorIcon.make("star", UiKit.ACCENT if j == 0 else Color(1, 1, 1), 34.0 - j * 12.0)
+			layer.add_child(st)
+			var c := rect.position + Vector2(rect.size.x * (k + 0.5) / count, rect.size.y * 0.5)
+			st.global_position = c - st.custom_minimum_size * 0.5
+			st.pivot_offset = st.custom_minimum_size * 0.5
+			var dest := st.position + Vector2(randf_range(-50, 50), randf_range(-120, -70))
+			var ts := st.create_tween().set_parallel(true)
+			ts.tween_property(st, "position", dest, 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			ts.tween_property(st, "rotation", randf_range(-2.0, 2.0), 0.55)
+			ts.tween_property(st, "scale", Vector2(1.5, 1.5), 0.55)
+			ts.tween_property(st, "modulate:a", 0.0, 0.55).set_ease(Tween.EASE_IN)
+			ts.chain().tween_callback(st.queue_free)
+
+
+var _warn_tween: Tween
+
+## Con la bandeja casi llena, el marco late en rojo.
+func set_warning(on: bool) -> void:
+	if on and _warn_tween == null:
+		_warn_tween = create_tween().set_loops()
+		_warn_tween.tween_property(self, "self_modulate", Color(1.0, 0.35, 0.3), 0.35)
+		_warn_tween.tween_property(self, "self_modulate", Color.WHITE, 0.35)
+	elif not on and _warn_tween != null:
+		_warn_tween.kill()
+		_warn_tween = null
+		self_modulate = Color.WHITE

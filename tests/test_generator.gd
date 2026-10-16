@@ -148,3 +148,54 @@ func _check_overlaps(lvl: Dictionary, tag: String) -> void:
 			# Se solapan en planta: deben estar apilados sin cruzarse en altura.
 			var overlap_y := minf(a.c.y + a.h, b.c.y + b.h) - maxf(a.c.y, b.c.y)
 			check(overlap_y <= 0.001, "%s: piezas %d y %d se intersectan" % [tag, a.id, b.id])
+
+
+func test_solution_respects_tray_bound() -> void:
+	for diff in [0.0, 0.3, 0.6, 0.9]:
+		for seed_value in 8:
+			var lvl := LevelGenerator.generate("living", 90, diff, 500 + seed_value)
+			var t := Tray.new()
+			var worst := 0
+			for pid in lvl.solution:
+				var r := t.add(lvl.pieces[pid].variant, pid)
+				worst = maxi(worst, r.fill)
+				if not check(not r.full, "dif %.1f: la solución nunca llena la bandeja" % diff):
+					return
+			check(worst <= 2 * lvl.max_open + 1, "dif %.1f: ocupación %d dentro del límite de %d tríos a medias" % [diff, worst, lvl.max_open])
+
+
+func test_tray_max5_rooms_stay_achievable() -> void:
+	var lvl := LevelGenerator.generate("kitchen", 120, 0.8, 3, {"max_open": 2})
+	var t := Tray.new()
+	var worst := 0
+	for pid in lvl.solution:
+		worst = maxi(worst, t.add(lvl.pieces[pid].variant, pid).fill)
+	check(worst <= 5, "con max_open 2 la solución usa como mucho 5 espacios (%d)" % worst)
+
+
+func test_harder_levels_have_fewer_ready_trios_on_top() -> void:
+	# Proporción de basura visible al inicio que ya forma tríos completos.
+	var ratio := func(diff: float) -> float:
+		var total := 0.0
+		for seed_value in 10:
+			var lvl := LevelGenerator.generate("living", 90, diff, 900 + seed_value)
+			var present := []
+			present.resize(lvl.pieces.size())
+			present.fill(true)
+			var opened := []
+			opened.resize(lvl.containers.size())
+			opened.fill(true)
+			var acc := {}
+			var n := 0
+			for p in lvl.pieces:
+				if p.kind == "trash" and LevelState.is_accessible(lvl, lvl.slot_piece, lvl.piece_slot, present, opened, p.id):
+					acc[p.variant] = acc.get(p.variant, 0) + 1
+					n += 1
+			var ready := 0
+			for v in acc:
+				ready += (acc[v] / 3) * 3
+			total += float(ready) / maxf(1.0, n)
+		return total / 10.0
+	var easy: float = ratio.call(0.0)
+	var hard: float = ratio.call(0.8)
+	check(hard < easy, "más dificultad, menos tríos servidos arriba (fácil %.2f, difícil %.2f)" % [easy, hard])

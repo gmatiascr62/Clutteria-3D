@@ -116,7 +116,8 @@ func take(pid: int) -> Dictionary:
 		state_changed.emit()
 	elif is_cleared():
 		_finish_trash()
-	return {"ok": true, "reason": "", "cleared": r.cleared, "full": r.full}
+	return {"ok": true, "reason": "", "cleared": r.cleared, "full": r.full,
+		"index": r.index, "cleared_at": r.cleared_at}
 
 
 func _collect_special(pid: int) -> Dictionary:
