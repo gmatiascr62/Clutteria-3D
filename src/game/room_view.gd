@@ -6,6 +6,9 @@ extends Node3D
 const LAYER_WORLD := 1
 const LAYER_INTERACT := 2
 const LAYER_STAIN := 4
+## Frente de un cajón abierto: se puede tocar para cerrarlo, pero no tapa la
+## línea de visión hacia lo que hay adentro (no está en las máscaras de LOS).
+const LAYER_CLOSE := 8
 
 const WORN_TINT := Color(0.62, 0.57, 0.5)
 const MASK_RES := 48
@@ -379,8 +382,8 @@ func open_container(ci: int, animate: bool) -> void:
 			tw.tween_property(dn.node, "position", target, 0.3).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		else:
 			dn.node.position = target
-		# El frente deja de ser interactivo para no tapar el contenido.
-		dn.body.collision_layer = 0
+		# El frente pasa a una capa propia: sirve para cerrar, pero no tapa el contenido.
+		dn.body.collision_layer = LAYER_CLOSE
 	else:
 		var cn: Dictionary = cover_nodes[c.ref]
 		if cn.open:
@@ -395,6 +398,30 @@ func open_container(ci: int, animate: bool) -> void:
 			tw.chain().tween_callback(func(): cn.node.visible = false)
 		else:
 			cn.node.visible = false
+
+
+## Cierra un cajón. `on_done` se llama al terminar la animación (para ocultar
+## el contenido recién cuando el cajón quedó cerrado).
+func close_container(ci: int, animate: bool, show_marker: bool, on_done := Callable()) -> void:
+	var c: Dictionary = level.containers[ci]
+	if c.type != "drawer":
+		return
+	var dn: Dictionary = drawer_nodes[c.ref]
+	if not dn.open:
+		return
+	dn.open = false
+	dn.body.collision_layer = LAYER_INTERACT
+	if show_marker and not _hint_markers.has(ci):
+		_add_hint_marker(ci, dn.node, Vector3(0, dn.def.height * 0.5 + 0.12, 0.05))
+	if animate:
+		var tw := create_tween()
+		tw.tween_property(dn.node, "position", dn.closed_pos, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+		if on_done.is_valid():
+			tw.tween_callback(on_done)
+	else:
+		dn.node.position = dn.closed_pos
+		if on_done.is_valid():
+			on_done.call()
 
 
 # --- Manchas ------------------------------------------------------------------

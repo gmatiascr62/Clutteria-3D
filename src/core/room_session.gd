@@ -8,6 +8,7 @@ signal pieces_returned(pids: Array)
 signal tray_changed
 signal trio_cleared(variant: String)
 signal container_opened(ci: int)
+signal container_closed(ci: int)
 signal special_collected(pid: int, piece: Dictionary)
 signal state_changed
 signal layout_changed(pids: Array)
@@ -18,6 +19,8 @@ var challenge := ""
 var tray := Tray.new()
 var present: Array = []
 var opened: Array = []
+## Contenedores abiertos alguna vez (para el desafío "abrir todos").
+var ever_opened: Array = []
 var slot_piece: Array = []
 var piece_slot: Array = []
 var time_total := 120.0
@@ -46,6 +49,7 @@ func reset() -> void:
 	opened = []
 	opened.resize(level.containers.size())
 	opened.fill(false)
+	ever_opened = opened.duplicate()
 	slot_piece = level.slot_piece.duplicate()
 	piece_slot = level.piece_slot.duplicate()
 	tray.clear()
@@ -134,12 +138,25 @@ func open_container(ci: int) -> Array:
 	if ci < 0 or ci >= opened.size() or opened[ci]:
 		return []
 	opened[ci] = true
+	ever_opened[ci] = true
 	var revealed := []
 	for sid in level.slots.size():
 		if level.slots[sid].container == ci and slot_piece[sid] >= 0 and present[slot_piece[sid]]:
 			revealed.append(slot_piece[sid])
 	container_opened.emit(ci)
 	return revealed
+
+
+## Cierra un cajón abierto (las tapas levantadas no se vuelven a poner).
+## Lo que queda adentro vuelve a estar oculto hasta abrirlo otra vez.
+func close_container(ci: int) -> bool:
+	if ci < 0 or ci >= opened.size() or not opened[ci]:
+		return false
+	if level.containers[ci].type != "drawer":
+		return false
+	opened[ci] = false
+	container_closed.emit(ci)
+	return true
 
 
 func tick(dt: float) -> void:
@@ -351,7 +368,7 @@ func challenge_met() -> bool:
 		"no_tools":
 			return stats.tools_used == 0
 		"all_containers":
-			for o in opened:
+			for o in ever_opened:
 				if not o:
 					return false
 			return true
@@ -372,7 +389,7 @@ func to_dict() -> Dictionary:
 		if not present[i]:
 			removed.append(i)
 	return {
-		"removed": removed, "opened": opened.duplicate(), "tray": tray.to_dict(),
+		"removed": removed, "opened": opened.duplicate(), "ever_opened": ever_opened.duplicate(), "tray": tray.to_dict(),
 		"piece_slot": piece_slot.duplicate(), "time_total": time_total, "time_left": time_left,
 		"phase": phase, "blocked": blocked, "loss_reason": loss_reason,
 		"loss_life_taken": loss_life_taken, "stats": stats.duplicate(true),
@@ -386,6 +403,10 @@ func from_dict(d: Dictionary) -> void:
 	var op: Array = d.get("opened", [])
 	for i in mini(op.size(), opened.size()):
 		opened[i] = bool(op[i])
+	# Guardados anteriores no tenían "ever_opened": usar los abiertos.
+	var ev: Array = d.get("ever_opened", op)
+	for i in mini(ev.size(), ever_opened.size()):
+		ever_opened[i] = bool(ev[i]) or opened[i]
 	tray.from_dict(d.get("tray", {}))
 	var ps: Array = d.get("piece_slot", [])
 	if ps.size() == piece_slot.size():

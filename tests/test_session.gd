@@ -227,3 +227,50 @@ func test_mystery_and_challenges() -> void:
 	check(s.stats.mystery_opened >= 1, "abrió caja")
 	check(s.challenge_met(), "desafío cumplido")
 	eq(s.stars(), 3, "3 estrellas")
+
+
+func test_close_drawer_hides_contents_again() -> void:
+	var s := _session(60, 7)
+	var hidden := -1
+	var ci := -1
+	for p in s.level.pieces:
+		var slot: Dictionary = s.level.slots[s.piece_slot[p.id]]
+		if p.kind == "trash" and slot.container >= 0 and s.level.containers[slot.container].type == "drawer":
+			hidden = p.id
+			ci = slot.container
+			break
+	if not check(hidden >= 0, "hay basura en un cajón"):
+		return
+	s.open_container(ci)
+	check(s.is_accessible(hidden), "abierto: se puede tomar")
+	check(s.close_container(ci), "se puede cerrar")
+	check(s.is_hidden(hidden), "cerrado: vuelve a quedar oculto")
+	eq(s.take(hidden).reason, "covered", "cerrado: no se puede tomar")
+	check(not s.close_container(ci), "cerrar dos veces no hace nada")
+	s.open_container(ci)
+	check(s.take(hidden).ok, "reabierto: se toma")
+
+
+func test_covers_cannot_be_closed() -> void:
+	var s := _session(60, 7)
+	for ci in s.level.containers.size():
+		if s.level.containers[ci].type == "cover":
+			s.open_container(ci)
+			check(not s.close_container(ci), "una caja levantada no se vuelve a poner")
+			return
+
+
+func test_all_containers_challenge_counts_ever_opened() -> void:
+	var lvl := LevelGenerator.generate("kitchen", 45, 0.2, 9)
+	var s := RoomSession.new()
+	s.setup(lvl, "story", "all_containers", inv)
+	for ci in lvl.containers.size():
+		s.open_container(ci)
+	for ci in lvl.containers.size():
+		s.close_container(ci)
+	check(s.challenge_met(), "abrir y volver a cerrar cuenta para el desafío")
+	var s2 := RoomSession.new()
+	s2.setup(lvl, "story", "all_containers", inv)
+	s2.from_dict(JSON.parse_string(JSON.stringify(s.to_dict())))
+	check(s2.challenge_met(), "se conserva al guardar y reanudar")
+	eq(s2.opened, s.opened, "y los cajones siguen cerrados")

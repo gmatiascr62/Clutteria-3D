@@ -234,3 +234,38 @@ func test_tray_full_then_defeat_costs_one_life_once() -> void:
 			c.queue_free()
 	scene.queue_free()
 	await _frames(1)
+
+
+func test_tap_open_drawer_front_closes_it() -> void:
+	var scene := await _open_scene("kitchen", 60, 0.2, 31)
+	var s: RoomSession = scene.session
+	var ci := -1
+	for i in s.level.containers.size():
+		if s.level.containers[i].type == "drawer":
+			ci = i
+			break
+	if not check(ci >= 0, "hay un cajón"):
+		return
+	var view: RoomView = scene.view
+	var dn: Dictionary = view.drawer_nodes[s.level.containers[ci].ref]
+	var cam: Camera3D = scene.camera
+	var center := scene.get_viewport().get_visible_rect().size * 0.5
+	var aim := func():
+		var vp: Vector2 = scene.layout.viewpoints[dn.def.vps[0]]
+		cam.global_position = Vector3(vp.x, LayoutGeometry.EYE_HEIGHT, vp.y)
+		cam.look_at(dn.body.global_position + dn.def.normal * 0.02, Vector3.UP)
+	aim.call()
+	scene._tap(center)
+	check(s.opened[ci], "tocar el cajón lo abre")
+	await runner.create_timer(0.5).timeout
+	aim.call()
+	scene._tap(center)
+	check(not s.opened[ci], "tocar el frente del cajón abierto lo cierra")
+	await runner.create_timer(0.5).timeout
+	check(dn.node.position.is_equal_approx(dn.closed_pos), "vuelve a su lugar")
+	for sid in s.level.slots.size():
+		var pid: int = s.slot_piece[sid]
+		if s.level.slots[sid].container == ci and pid >= 0:
+			check(not view.piece_nodes[pid].node.visible, "el contenido queda oculto")
+	scene.queue_free()
+	await _frames(1)

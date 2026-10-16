@@ -130,6 +130,9 @@ func _ready() -> void:
 		view.place_all(session)
 		Sfx.play("drawer" if level.containers[ci].type == "drawer" else "lift")
 		_tut_event("container"))
+	session.container_closed.connect(func(ci):
+		view.close_container(ci, true, _has_pieces_in(ci), func(): view.place_all(session))
+		Sfx.play("drawer", 0.85))
 	session.special_collected.connect(_on_special)
 	session.state_changed.connect(_on_state_changed)
 
@@ -273,7 +276,7 @@ func _candidates() -> Array:
 		if pn.body.collision_layer != 0:
 			out.append([pn.body, view.piece_targets(i)])
 	for dn in view.drawer_nodes:
-		if dn.body.collision_layer != 0:
+		if dn.body.collision_layer == RoomView.LAYER_INTERACT:
 			out.append([dn.body, [dn.body.global_position + Vector3(0, 0, 0)]])
 	for cn in view.cover_nodes:
 		if cn.body.collision_layer & RoomView.LAYER_INTERACT:
@@ -294,6 +297,10 @@ func pick_at(screen: Vector2) -> Object:
 	var hit := _ray(from, from + dir * 15.0, mask)
 	if not hit.is_empty() and hit.collider.has_meta("kind"):
 		return hit.collider
+	# Toque directo sobre el frente de un cajón abierto (para cerrarlo).
+	var close_hit := _ray(from, from + dir * 15.0, RoomView.LAYER_WORLD | RoomView.LAYER_CLOSE)
+	if not close_hit.is_empty() and close_hit.collider.has_meta("kind"):
+		return close_hit.collider
 	var best: Object = null
 	var best_d := PICK_RADIUS * _ui_scale()
 	for c in _candidates():
@@ -311,6 +318,14 @@ func pick_at(screen: Vector2) -> Object:
 	return best
 
 
+func _has_pieces_in(ci: int) -> bool:
+	for sid in level.slots.size():
+		var pid: int = session.slot_piece[sid]
+		if level.slots[sid].container == ci and pid >= 0 and session.present[pid]:
+			return true
+	return false
+
+
 func _tap(pos: Vector2) -> void:
 	var body := pick_at(pos)
 	if body == null:
@@ -323,8 +338,12 @@ func _tap(pos: Vector2) -> void:
 			if _mode == "trash":
 				_on_piece_tapped(int(body.get_meta("piece")))
 		"drawer", "cover":
-			if _mode == "trash" and int(body.get_meta("container")) >= 0:
-				session.open_container(int(body.get_meta("container")))
+			var ci := int(body.get_meta("container"))
+			if _mode == "trash" and ci >= 0:
+				if session.opened[ci]:
+					session.close_container(ci)
+				else:
+					session.open_container(ci)
 				_save_soon()
 
 
